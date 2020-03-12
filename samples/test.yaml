@@ -1,0 +1,12 @@
+name: q1    #样例名称
+description: THIS IS A DESCRIPTIVE TEXT FOR THIS TESTCASE
+content: THIS IS A TESTCASE
+rows:       #SQL测试用例的话, 该对象与sql语句至少有一个存在, 建议使用sql语句
+sql: select * from movies; #能选择出正确答案的SQL语句
+value : 10 #分值
+spec:
+  lang: SQLite #语言,暂时只有SQLite
+  type: SQL    #测试类型,暂时只有SQL
+  set: true    #是否为集合(查询结果是否忽略顺序)
+  trim: true   #没有用的
+  database: dbs/filmdb.sqlite #SQL路径/URL,可以不用改
