@@ -17,6 +17,7 @@ type Sample struct {
 	Spec        Spec          `yaml:"spec"`
 	Value       float32       `yaml:"value"`
 	DB          *sql.DB
+	TmpFile     string
 }
 
 func ReadFromFile(filepath string) (*Sample, error) {

@@ -7,7 +7,7 @@ import (
 )
 
 func ScanInterface(rows *sql.Rows) ([]interface{}, error) {
-	col,err := rows.Columns()
+	col, err := rows.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -15,11 +15,11 @@ func ScanInterface(rows *sql.Rows) ([]interface{}, error) {
 	colNum := len(col)
 	for rows.Next() {
 		row := make([]interface{}, colNum)
-		for idx, _:= range col{
+		for idx, _ := range col {
 			row[idx] = new([]byte)
 		}
 		err := rows.Scan(row...)
-		byteRow := []byte{}
+		var byteRow []byte
 		for _, cell := range row {
 			byteCell := *(cell.(*[]byte))
 			byteRow = append(byteRow, byteCell...)

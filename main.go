@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	sqlite_judge "judgeBackend/service/sqlite-judge"
+	_ "net/http/pprof"
+	"time"
 )
 
 func main() {
-	t, err := sqlite_judge.InitTest("test", "11712009", "samples/", map[string]string{"q1":"select * from movies"})
+	t1 := time.Now() // get current time
+	err := sqlite_judge.Judge("Assignment2 Queries/grades.csv", "samples/Assignment1")
 	fmt.Println(err)
-	t.RunTest()
-	fmt.Print(t.Grade())
+	elapsed := time.Since(t1)
+	fmt.Println("App elapsed: ", elapsed)
 }
