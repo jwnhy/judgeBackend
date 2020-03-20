@@ -5,16 +5,20 @@ import (
 	"fmt"
 	"github.com/tushar2708/altcsv"
 	"io/ioutil"
+	"judgeBackend/base"
+	"judgeBackend/service/sample"
+	"log"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 )
 
 type Student struct {
 	Sid              string
 	LastName         string
 	FirstName        string
-	Grade            float32
+	Grade            float64
 	SubmissionDate   string
 	SubmissionStatus string
 	Submissions      []*os.File
@@ -131,4 +135,89 @@ func WriteToCSV(studentSlice []*Student, gradeCSV string) error {
 	}
 	studentWriter.Flush()
 	return err
+}
+
+func StudentToInput(studentSlice []*Student) error {
+	for _, student := range studentSlice {
+		res := make(map[string]string, 0)
+		for _, f := range student.Submissions {
+			filename := strings.TrimSuffix(path.Base(f.Name()), path.Ext(f.Name()))
+			byteContent := make([]byte, 1024*1024)
+			_, err := f.Read(byteContent)
+			if err != nil {
+				return err
+			}
+			res[filename] = string(byteContent)
+		}
+		student.FileContent = res
+	}
+	return nil
+}
+
+func InitAndRun(sampleDir string, input map[string]string, gradeChan chan float64, summaryChan *[]chan string) {
+	files, err := ioutil.ReadDir(sampleDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	*summaryChan = make([]chan string, len(files))
+	gradeChanList := make([]chan float64, len(files))
+	grade := float64(0)
+	tmpDir, err := ioutil.TempDir("/tmp", "")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i, f := range files {
+		gradeChanList[i] = make(chan float64)
+		(*summaryChan)[i] = make(chan string)
+		s, err := sample.LoadFromFile(path.Join(sampleDir, f.Name()))
+		if err != nil {
+			log.Fatal(err)
+		}
+		t := base.SelectTest(*s)
+		if input[s.Name] == "" {
+			continue
+		}
+
+		err = t.Init(tmpDir, *s, input[s.Name])
+		if err != nil {
+			log.Fatal(err)
+		}
+		go t.Run(gradeChanList[i], (*summaryChan)[i])
+	}
+	for _, c := range gradeChanList {
+		grade += <-c
+	}
+	err = os.RemoveAll(tmpDir)
+	if err != nil {
+		fmt.Println(err)
+	}
+	gradeChan <- grade
+}
+
+func Judge(gradeCSV, sampleDir string) error {
+	studentSlice, err := LoadFromCSV(gradeCSV)
+	if err != nil {
+		return err
+	}
+	err = StudentToInput(studentSlice)
+	if err != nil {
+		return err
+	}
+	gradeChan := make([]chan float64, len(studentSlice))
+	summaryChan := make([][]chan string, len(studentSlice))
+	for i, student := range studentSlice {
+		gradeChan[i] = make(chan float64)
+		go InitAndRun(sampleDir, student.FileContent, gradeChan[i], &summaryChan[i])
+	}
+	for i, student := range studentSlice {
+		student.Grade = <-gradeChan[i]
+		for _, summary := range summaryChan[i] {
+			student.Summary = append(student.Summary, <-summary)
+		}
+	}
+	err = WriteToCSV(studentSlice, gradeCSV)
+	if err != nil {
+		return err
+	}
+	return nil
 }

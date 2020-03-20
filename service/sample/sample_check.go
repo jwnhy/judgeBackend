@@ -2,14 +2,11 @@ package sample
 
 import (
 	"errors"
-	"reflect"
 	"regexp"
 )
 
 func (s Sample) Check(input interface{}) (bool, error) {
 	switch s.Spec.Type {
-	case Row:
-		return reflect.DeepEqual(s.Rows, input), nil
 	case Regex:
 		str := input.(string)
 		return regexp.MatchString(s.Regex, str)

@@ -5,7 +5,6 @@ type Lang string
 
 const (
 	SPJ   = "SPJ"
-	Row   = "Row"
 	Regex = "Regex"
 	SQL   = "SQL"
 )

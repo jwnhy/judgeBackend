@@ -1,13 +1,13 @@
-package main
+package test
 
 import (
 	"fmt"
 	"judgeBackend/service/sakai"
-	_ "net/http/pprof"
+	"testing"
 	"time"
 )
 
-func main() {
+func TestJudge(t *testing.T) {
 	t1 := time.Now() // get current time
 	err := sakai.Judge("Assignment2 Queries/grades.csv", "samples/Assignment1")
 	fmt.Println(err)

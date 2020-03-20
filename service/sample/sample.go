@@ -15,12 +15,12 @@ type Sample struct {
 	Rows        []interface{} `yaml:"rows"`
 	SQL         string        `yaml:"sql"`
 	Spec        Spec          `yaml:"spec"`
-	Value       float32       `yaml:"value"`
+	Value       float64       `yaml:"value"`
 	DB          *sql.DB
 	TmpFile     string
 }
 
-func ReadFromFile(filepath string) (*Sample, error) {
+func LoadFromFile(filepath string) (*Sample, error) {
 	f, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		return nil, err
@@ -38,9 +38,6 @@ func (s Sample) CheckConsistency() error {
 	spec := s.Spec
 	if spec.Type == Regex && s.Regex == "" {
 		return errors.New("regular expression cannot be empty")
-	}
-	if spec.Type == Row && len(s.Rows) == 0 {
-		return errors.New("row array cannot be empty")
 	}
 	return nil
 }

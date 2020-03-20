@@ -3,11 +3,15 @@ package util
 import (
 	"crypto/md5"
 	"database/sql"
+	"errors"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func ScanInterface(rows *sql.Rows) ([]interface{}, error) {
 	col, err := rows.Columns()
+	if col == nil {
+		return nil, errors.New("nothing in the result set")
+	}
 	if err != nil {
 		return nil, err
 	}
