@@ -1,14 +1,15 @@
-package base
+package test
 
 import (
+	"judgeBackend/basestruct/report"
 	"judgeBackend/service/sample"
 	sqlite_judge "judgeBackend/service/sqlite-judge"
 	"log"
 )
 
 type Test interface {
-	Run(grade chan float64, summary chan string)
-	Init(dir string, s sample.Sample, input string) error
+	Run(report chan report.Report)
+	Init(s sample.Sample, input string) error
 	Close()
 }
 

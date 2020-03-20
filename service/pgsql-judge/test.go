@@ -3,7 +3,7 @@ package pgsql_judge
 import (
 	"database/sql"
 	"io/ioutil"
-	"judgeBackend/base"
+	"judgeBackend/basestruct"
 	"judgeBackend/service/sample"
 	"path"
 )
@@ -16,7 +16,7 @@ type PGSQLTest struct {
 	db      *sql.DB
 }
 
-func (t *PGSQLTest) New() base.Test {
+func (t *PGSQLTest) New() basestruct.Test {
 	return &PGSQLTest{}
 }
 

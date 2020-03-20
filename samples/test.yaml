@@ -9,4 +9,4 @@ spec:
   type: SQL    #测试类型,暂时只有SQL
   set: true    #是否为集合(查询结果是否忽略顺序)
   trim: true   #没有用的
-  database: dbs/filmdb.sqlite #SQL路径/URL,可以不用改
+  database: dbs/filmdb.sqlite #SQL路径/URL,可以不用改, 对于不同的语言会采用不同的策略.

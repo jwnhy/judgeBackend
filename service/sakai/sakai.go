@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"github.com/tushar2708/altcsv"
 	"io/ioutil"
-	"judgeBackend/base"
+	"judgeBackend/baseinterface/test"
+	"judgeBackend/basestruct/report"
 	"judgeBackend/service/sample"
 	"log"
 	"os"
@@ -154,44 +155,30 @@ func StudentToInput(studentSlice []*Student) error {
 	return nil
 }
 
-func InitAndRun(sampleDir string, input map[string]string, gradeChan chan float64, summaryChan *[]chan string) {
+func InitAndRun(sampleDir string, input map[string]string, reportChan chan []chan report.Report) {
 	files, err := ioutil.ReadDir(sampleDir)
 	if err != nil {
 		log.Fatal(err)
 	}
-	*summaryChan = make([]chan string, len(files))
-	gradeChanList := make([]chan float64, len(files))
-	grade := float64(0)
-	tmpDir, err := ioutil.TempDir("/tmp", "")
-	if err != nil {
-		log.Fatal(err)
-	}
+	tmpReport := make([]chan report.Report, len(files))
 	for i, f := range files {
-		gradeChanList[i] = make(chan float64)
-		(*summaryChan)[i] = make(chan string)
+		tmpReport[i] = make(chan report.Report)
 		s, err := sample.LoadFromFile(path.Join(sampleDir, f.Name()))
 		if err != nil {
 			log.Fatal(err)
 		}
-		t := base.SelectTest(*s)
+		t := test.SelectTest(*s)
 		if input[s.Name] == "" {
 			continue
 		}
 
-		err = t.Init(tmpDir, *s, input[s.Name])
+		err = t.Init(*s, input[s.Name])
 		if err != nil {
 			log.Fatal(err)
 		}
-		go t.Run(gradeChanList[i], (*summaryChan)[i])
+		go t.Run(tmpReport[i])
 	}
-	for _, c := range gradeChanList {
-		grade += <-c
-	}
-	err = os.RemoveAll(tmpDir)
-	if err != nil {
-		fmt.Println(err)
-	}
-	gradeChan <- grade
+	reportChan <- tmpReport
 }
 
 func Judge(gradeCSV, sampleDir string) error {
@@ -203,16 +190,16 @@ func Judge(gradeCSV, sampleDir string) error {
 	if err != nil {
 		return err
 	}
-	gradeChan := make([]chan float64, len(studentSlice))
-	summaryChan := make([][]chan string, len(studentSlice))
+	reportChan := make([]chan []chan report.Report, len(studentSlice))
 	for i, student := range studentSlice {
-		gradeChan[i] = make(chan float64)
-		go InitAndRun(sampleDir, student.FileContent, gradeChan[i], &summaryChan[i])
+		reportChan[i] = make(chan []chan report.Report)
+		go InitAndRun(sampleDir, student.FileContent, reportChan[i])
 	}
 	for i, student := range studentSlice {
-		student.Grade = <-gradeChan[i]
-		for _, summary := range summaryChan[i] {
-			student.Summary = append(student.Summary, <-summary)
+		for _, rc := range <-reportChan[i] {
+			r := <-rc
+			student.Grade += r.Grade
+			student.Summary = append(student.Summary, r.Summary)
 		}
 	}
 	err = WriteToCSV(studentSlice, gradeCSV)
