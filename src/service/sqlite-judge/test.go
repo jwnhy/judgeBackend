@@ -7,10 +7,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"io/ioutil"
-	"judgeBackend/basestruct/report"
-	"judgeBackend/basestruct/sqlcache"
-	"judgeBackend/service/sample"
-	"judgeBackend/util"
+	"judgeBackend/src/basestruct/report"
+	"judgeBackend/src/basestruct/sqlcache"
+	"judgeBackend/src/service/sample"
+	"judgeBackend/src/util"
 	"log"
 	"os"
 )
@@ -103,7 +103,6 @@ func (t *SQLiteTest) Run(reportChan chan report.Report) {
 	r.Summary = fmt.Sprintf("%s is correct\n", s.Name)
 SEND:
 	reportChan <- *r
-	t.Close()
 }
 
 func (t SQLiteTest) Close() {

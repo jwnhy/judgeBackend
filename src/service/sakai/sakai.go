@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/tushar2708/altcsv"
 	"io/ioutil"
-	"judgeBackend/baseinterface/test"
-	"judgeBackend/basestruct/report"
-	"judgeBackend/service/sample"
+	"judgeBackend/src/baseinterface/test"
+	"judgeBackend/src/basestruct/report"
+	"judgeBackend/src/service/sample"
 	"log"
 	"os"
 	"path"
@@ -16,7 +16,7 @@ import (
 )
 
 type Student struct {
-	Sid              string
+	SID              string
 	LastName         string
 	FirstName        string
 	Grade            float64
@@ -30,7 +30,7 @@ type Student struct {
 
 func (s Student) ToStringArray() []string {
 	grade := fmt.Sprintf("%.0f", s.Grade)
-	res := []string{s.Sid, s.Sid, s.LastName, s.FirstName, grade, s.SubmissionDate, s.SubmissionStatus}
+	res := []string{s.SID, s.SID, s.LastName, s.FirstName, grade, s.SubmissionDate, s.SubmissionStatus}
 	return res
 }
 func rowValid(row []string) bool {
@@ -38,7 +38,7 @@ func rowValid(row []string) bool {
 	_, err := strconv.ParseInt(id, 10, 32)
 	return len(row) == 7 && err == nil
 }
-func LoadFromCSV(gradeCSV string) ([]*Student, error) {
+func LoadFromCSV(gradeCSV string) (map[string]*Student, error) {
 	gradeFile, err := os.Open(gradeCSV)
 	if err != nil {
 		return nil, err
@@ -51,18 +51,18 @@ func LoadFromCSV(gradeCSV string) ([]*Student, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := make([]*Student, 0)
+	res := make(map[string]*Student)
 	for _, row := range studentRows {
 		if !rowValid(row) {
 			continue
 		}
 		s := &Student{row[0], row[2], row[3], 0, row[5], row[6], []*os.File{}, nil, nil, make(map[string]string)}
-		commentFile := fmt.Sprintf("%s/%s, %s(%s)/comments.txt", baseDir, s.LastName, s.FirstName, s.Sid)
+		commentFile := fmt.Sprintf("%s/%s, %s(%s)/comments.txt", baseDir, s.LastName, s.FirstName, s.SID)
 		s.Comment, err = os.OpenFile(commentFile, os.O_WRONLY, 777)
 		if err != nil {
 			return nil, err
 		}
-		submissionDir := fmt.Sprintf("%s/%s, %s(%s)/Submission attachment(s)", baseDir, s.LastName, s.FirstName, s.Sid)
+		submissionDir := fmt.Sprintf("%s/%s, %s(%s)/Submission attachment(s)", baseDir, s.LastName, s.FirstName, s.SID)
 		submissions, err := ioutil.ReadDir(submissionDir)
 		if err != nil {
 			return nil, err
@@ -75,12 +75,12 @@ func LoadFromCSV(gradeCSV string) ([]*Student, error) {
 			}
 			s.Submissions = append(s.Submissions, submissionFile)
 		}
-		res = append(res, s)
+		res[s.SID] = s
 	}
 	return res, nil
 }
 
-func WriteToCSV(studentSlice []*Student, gradeCSV string) error {
+func WriteToCSV(studentSlice map[string]*Student, gradeCSV string) error {
 	gradeFile, err := os.Open(gradeCSV)
 	if err != nil {
 		return err
@@ -138,13 +138,12 @@ func WriteToCSV(studentSlice []*Student, gradeCSV string) error {
 	return err
 }
 
-func StudentToInput(studentSlice []*Student) error {
+func StudentToInput(studentSlice map[string]*Student) error {
 	for _, student := range studentSlice {
 		res := make(map[string]string, 0)
 		for _, f := range student.Submissions {
 			filename := strings.TrimSuffix(path.Base(f.Name()), path.Ext(f.Name()))
-			byteContent := make([]byte, 1024*1024)
-			_, err := f.Read(byteContent)
+			byteContent, err := ioutil.ReadFile(f.Name())
 			if err != nil {
 				return err
 			}
@@ -155,19 +154,20 @@ func StudentToInput(studentSlice []*Student) error {
 	return nil
 }
 
-func InitAndRun(sampleDir string, input map[string]string, reportChan chan []chan report.Report) {
+func InitAndRun(sampleDir string, student *Student, reportChan chan report.Report) {
 	files, err := ioutil.ReadDir(sampleDir)
 	if err != nil {
 		log.Fatal(err)
 	}
-	tmpReport := make([]chan report.Report, len(files))
-	for i, f := range files {
-		tmpReport[i] = make(chan report.Report)
+	input := student.FileContent
+	tmpReportChan := make(chan report.Report)
+	for _, f := range files {
 		s, err := sample.LoadFromFile(path.Join(sampleDir, f.Name()))
 		if err != nil {
 			log.Fatal(err)
 		}
 		t := test.SelectTest(*s)
+
 		if input[s.Name] == "" {
 			continue
 		}
@@ -176,33 +176,45 @@ func InitAndRun(sampleDir string, input map[string]string, reportChan chan []cha
 		if err != nil {
 			log.Fatal(err)
 		}
-		go t.Run(tmpReport[i])
+		go t.Run(tmpReportChan)
+		r := <-tmpReportChan
+		r.SID = student.SID
+		r.End = false
+		reportChan <- r
+		t.Close()
 	}
-	reportChan <- tmpReport
+	r := report.Report{SID: student.SID, End: true}
+	reportChan <- r
 }
 
 func Judge(gradeCSV, sampleDir string) error {
-	studentSlice, err := LoadFromCSV(gradeCSV)
+	studentMap, err := LoadFromCSV(gradeCSV)
+	tmpMap := make(map[string]*Student)
+	for k, _ := range studentMap {
+		tmpMap[k] = nil
+	}
 	if err != nil {
 		return err
 	}
-	err = StudentToInput(studentSlice)
+	err = StudentToInput(studentMap)
 	if err != nil {
 		return err
 	}
-	reportChan := make([]chan []chan report.Report, len(studentSlice))
-	for i, student := range studentSlice {
-		reportChan[i] = make(chan []chan report.Report)
-		go InitAndRun(sampleDir, student.FileContent, reportChan[i])
+	reportChanQueue := make(chan report.Report, len(studentMap))
+	for _, student := range studentMap {
+		go InitAndRun(sampleDir, student, reportChanQueue)
 	}
-	for i, student := range studentSlice {
-		for _, rc := range <-reportChan[i] {
-			r := <-rc
-			student.Grade += r.Grade
-			student.Summary = append(student.Summary, r.Summary)
+	for len(tmpMap) > 0 {
+		r := <-reportChanQueue
+		if r.End {
+			delete(tmpMap, r.SID)
+			fmt.Printf("Finished %s with grade %f\n", r.SID, studentMap[r.SID].Grade)
+		} else {
+			studentMap[r.SID].Grade += r.Grade
+			studentMap[r.SID].Summary = append(studentMap[r.SID].Summary, r.Summary)
 		}
 	}
-	err = WriteToCSV(studentSlice, gradeCSV)
+	err = WriteToCSV(studentMap, gradeCSV)
 	if err != nil {
 		return err
 	}
