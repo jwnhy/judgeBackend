@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
+	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -19,11 +20,12 @@ import (
 )
 
 const (
-	MAX_CONTAINER_LIMIT = 12
-	WAIT_DUREATION      = 5
+	MaxContainerLimit = 12
+	WaitDuration      = 5
 )
 
 var curNumContainer uint32 = 0
+var building = mapset.NewSet()
 
 func GetIPAddress(id string) (string, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -40,8 +42,8 @@ func GetIPAddress(id string) (string, error) {
 
 func StartContainer(s sample.Sample, ports []nat.Port) (string, error) {
 
-	for atomic.LoadUint32(&curNumContainer) >= MAX_CONTAINER_LIMIT {
-		time.Sleep(WAIT_DUREATION * time.Second)
+	for atomic.LoadUint32(&curNumContainer) >= MaxContainerLimit {
+		time.Sleep(WaitDuration * time.Second)
 	}
 	atomic.AddUint32(&curNumContainer, 1)
 
@@ -55,7 +57,7 @@ func StartContainer(s sample.Sample, ports []nat.Port) (string, error) {
 		exposedPorts[p] = struct{}{}
 	}
 	res, err := cli.ContainerCreate(context.Background(), &container.Config{
-		Image:        fmt.Sprintf("%s:latest", s.Name),
+		Image:        fmt.Sprintf("%s:latest", s.Tag()),
 		ExposedPorts: exposedPorts,
 	}, &container.HostConfig{}, &network.NetworkingConfig{}, "")
 	if err != nil {
@@ -79,19 +81,19 @@ func RemoveContainer(id string) error {
 	return cli.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{})
 }
 
-func ImageExist(s sample.Sample) (bool, error) {
+func ImageExist(s sample.Sample) (bool, bool, error) {
 	l, err := ImageList()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	for _, subl := range l {
 		for _, tag := range subl {
-			if s.Name+":latest" == tag {
-				return true, nil
+			if s.Tag()+":latest" == tag {
+				return true, building.Contains(s.Tag()), nil
 			}
 		}
 	}
-	return false, nil
+	return false, building.Contains(s.Tag()), nil
 }
 
 func ImageList() ([][]string, error) {
@@ -111,6 +113,7 @@ func ImageList() ([][]string, error) {
 	return res, nil
 }
 func Build(s sample.Sample) error {
+	building.Add(s.Tag())
 	imageContextDir := path.Dir(s.Spec.DockerFile)
 	tar := new(archivex.TarFile)
 	err := tar.Create("/tmp/pg_context.tar")
@@ -137,7 +140,7 @@ func Build(s sample.Sample) error {
 	}
 	options := types.ImageBuildOptions{
 		NoCache:        false,
-		Tags:           []string{s.Name},
+		Tags:           []string{s.Tag()},
 		PullParent:     true,
 		SuppressOutput: false,
 		Remove:         true,

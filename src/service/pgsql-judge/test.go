@@ -18,7 +18,7 @@ import (
 var sqlCache = sqlcache.New()
 
 const (
-	WAIT_DUREATION = 3
+	WaitDuration = 3
 )
 
 type PGSQLTest struct {
@@ -29,15 +29,22 @@ type PGSQLTest struct {
 
 func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 	if s.Spec.Lang == sample.Postgres {
-		ok, err := docker.ImageExist(s)
+		built, building, err := docker.ImageExist(s)
 		if err != nil {
 			return err
 		}
-		if !ok {
+		if !building && !built {
 			err := docker.Build(s)
 			if err != nil {
 				return err
 			}
+		}
+		for !built {
+			built, _, err = docker.ImageExist(s)
+			if err != nil {
+				return err
+			}
+			time.Sleep(WaitDuration * time.Second)
 		}
 		id, err := docker.StartContainer(s, []nat.Port{"5432"})
 		if err != nil {
@@ -48,7 +55,7 @@ func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 		s.DB, err = sql.Open("postgres", connStr)
 		if err = s.DB.Ping(); err != nil {
 			for s.DB.Ping() != nil {
-				time.Sleep(WAIT_DUREATION * time.Second)
+				time.Sleep(WaitDuration * time.Second)
 			}
 		}
 		*t = PGSQLTest{input, s, id}
@@ -67,7 +74,7 @@ func (t *PGSQLTest) Run(reportChan chan report.Report) {
 			log.Println(s.SQL)
 			log.Fatal(err)
 		}
-		standardSlice, err = util.ScanInterface(standardRows)
+		standardSlice, _, err = util.ScanInterface(standardRows)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -81,12 +88,17 @@ func (t *PGSQLTest) Run(reportChan chan report.Report) {
 		r.Summary = err.Error() + "\n"
 		goto SEND
 	} else {
-		userSlice, err := util.ScanInterface(userRows)
+		userSlice, _, err := util.ScanInterface(userRows)
 		if err != nil {
 			r.Grade = 0
 			r.Summary = err.Error() + "\n"
 			goto SEND
 
+		}
+		if len(userSlice) != len(standardSlice) {
+			r.Grade = 0
+			r.Summary = fmt.Sprintf("%s is wrong, row number is wrong\n", s.Name)
+			goto SEND
 		}
 		if s.Spec.IsSet {
 			s1 := mapset.NewSetFromSlice(standardSlice)
@@ -97,14 +109,12 @@ func (t *PGSQLTest) Run(reportChan chan report.Report) {
 				goto SEND
 			}
 		} else {
-			if len(standardSlice) == len(userSlice) {
-				for i, s1 := range standardSlice {
-					s2 := userSlice[i]
-					if s1 != s2 {
-						r.Grade = 0
-						r.Summary = fmt.Sprintf("%s is wrong\n", s.Name)
-						goto SEND
-					}
+			for i, s1 := range standardSlice {
+				s2 := userSlice[i]
+				if s1 != s2 {
+					r.Grade = 0
+					r.Summary = fmt.Sprintf("%s is wrong\n", s.Name)
+					goto SEND
 				}
 			}
 		}

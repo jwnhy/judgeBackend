@@ -9,6 +9,7 @@ import (
 
 type Sample struct {
 	Name        string        `yaml:"name"`
+	Filename    string        `yaml:"filename"`
 	Description string        `yaml:"description"`
 	Content     string        `yaml:"content"`
 	Regex       string        `yaml:"regex"`
@@ -18,6 +19,7 @@ type Sample struct {
 	Value       float64       `yaml:"value"`
 	DB          *sql.DB
 	TmpFile     string
+	Assignment  string
 }
 
 func LoadFromFile(filepath string) (*Sample, error) {
@@ -40,4 +42,8 @@ func (s Sample) CheckConsistency() error {
 		return errors.New("regular expression cannot be empty")
 	}
 	return nil
+}
+
+func (s Sample) Tag() string {
+	return s.Name + "-" + s.Assignment
 }

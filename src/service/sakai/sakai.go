@@ -3,6 +3,7 @@ package sakai
 import (
 	"encoding/csv"
 	"fmt"
+	"github.com/dimchansky/utfbom"
 	"github.com/tushar2708/altcsv"
 	"io/ioutil"
 	"judgeBackend/src/baseinterface/test"
@@ -12,7 +13,7 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
+	"time"
 )
 
 type Student struct {
@@ -58,7 +59,7 @@ func LoadFromCSV(gradeCSV string) (map[string]*Student, error) {
 		}
 		s := &Student{row[0], row[2], row[3], 0, row[5], row[6], []*os.File{}, nil, nil, make(map[string]string)}
 		commentFile := fmt.Sprintf("%s/%s, %s(%s)/comments.txt", baseDir, s.LastName, s.FirstName, s.SID)
-		s.Comment, err = os.OpenFile(commentFile, os.O_WRONLY, 777)
+		s.Comment, err = os.OpenFile(commentFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +105,7 @@ func WriteToCSV(studentSlice map[string]*Student, gradeCSV string) error {
 	if err != nil {
 		return err
 	}
-	gradeFile, err = os.OpenFile(gradeCSV, os.O_WRONLY, 777)
+	gradeFile, err = os.OpenFile(gradeCSV, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
 	}
@@ -142,8 +143,12 @@ func StudentToInput(studentSlice map[string]*Student) error {
 	for _, student := range studentSlice {
 		res := make(map[string]string, 0)
 		for _, f := range student.Submissions {
-			filename := strings.TrimSuffix(path.Base(f.Name()), path.Ext(f.Name()))
-			byteContent, err := ioutil.ReadFile(f.Name())
+			filename := path.Base(f.Name())
+			f, err := os.Open(f.Name())
+			if err != nil {
+				return err
+			}
+			byteContent, err := ioutil.ReadAll(utfbom.SkipOnly(f))
 			if err != nil {
 				return err
 			}
@@ -168,11 +173,12 @@ func InitAndRun(sampleDir string, student *Student, reportChan chan report.Repor
 		}
 		t := test.SelectTest(*s)
 
-		if input[s.Name] == "" {
+		if input[s.Filename] == "" {
+			reportChan <- report.Report{SID: student.SID, Grade: 0, Summary: s.Filename + " not found.\n", End: false}
 			continue
 		}
 
-		err = t.Init(*s, input[s.Name])
+		err = t.Init(*s, input[s.Filename])
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -183,7 +189,7 @@ func InitAndRun(sampleDir string, student *Student, reportChan chan report.Repor
 		reportChan <- r
 		t.Close()
 	}
-	r := report.Report{SID: student.SID, End: true}
+	r := report.Report{SID: student.SID, Summary: time.Now().String(), End: true}
 	reportChan <- r
 }
 
@@ -196,6 +202,7 @@ func Judge(gradeCSV, sampleDir string) error {
 	if err != nil {
 		return err
 	}
+
 	err = StudentToInput(studentMap)
 	if err != nil {
 		return err
@@ -208,7 +215,8 @@ func Judge(gradeCSV, sampleDir string) error {
 		r := <-reportChanQueue
 		if r.End {
 			delete(tmpMap, r.SID)
-			fmt.Printf("Finished %s with grade %f\n", r.SID, studentMap[r.SID].Grade)
+			studentMap[r.SID].Summary = append(studentMap[r.SID].Summary, r.Summary)
+			fmt.Printf("Finished %s with grade %.2f\n", r.SID, studentMap[r.SID].Grade)
 		} else {
 			studentMap[r.SID].Grade += r.Grade
 			studentMap[r.SID].Summary = append(studentMap[r.SID].Summary, r.Summary)
