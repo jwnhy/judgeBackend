@@ -2,9 +2,9 @@ package test
 
 import (
 	"judgeBackend/src/basestruct/report"
-	pgsql_judge "judgeBackend/src/service/pgsql-judge"
+	pgsqlJudge "judgeBackend/src/service/pgsql-judge"
 	"judgeBackend/src/service/sample"
-	sqlite_judge "judgeBackend/src/service/sqlite-judge"
+	sqliteJudge "judgeBackend/src/service/sqlite-judge"
 	"log"
 )
 
@@ -17,9 +17,9 @@ type Test interface {
 func SelectTest(s sample.Sample) Test {
 	switch s.Spec.Lang {
 	case sample.SQLite:
-		return &sqlite_judge.SQLiteTest{}
+		return &sqliteJudge.SQLiteTest{}
 	case sample.Postgres:
-		return &pgsql_judge.PGSQLTest{}
+		return &pgsqlJudge.PGSQLTest{}
 	default:
 		log.Fatal("no default sample type")
 	}

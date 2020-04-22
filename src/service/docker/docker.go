@@ -88,6 +88,7 @@ func ImageExist(s sample.Sample) (bool, bool, error) {
 	}
 	for _, subl := range l {
 		for _, tag := range subl {
+			building.Remove(s.Tag())
 			if s.Tag()+":latest" == tag {
 				return true, building.Contains(s.Tag()), nil
 			}
