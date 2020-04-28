@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var pgCache = util.New()
+var pgCache = util.NewCache()
 
 const (
 	WaitDuration = 3
@@ -26,6 +26,9 @@ type PGSQLTest struct {
 
 func (t PGSQLTest) String() string {
 	return "PGSQLTest"
+}
+func (t *PGSQLTest) GetSample() sample.Sample {
+	return t.sample
 }
 func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 	if s.Spec.Lang == sample.Postgres {
@@ -66,7 +69,7 @@ func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 func (t *PGSQLTest) Run(reportChan chan util.Report) {
 	s := t.sample
 	var standardSlice []interface{}
-	r := &util.Report{}
+	r := util.Report{}
 	res, ok := pgCache.Get(s.Name, s.SQL)
 	if !ok {
 		standardRows, err := s.DB.Query(s.SQL)
@@ -122,7 +125,7 @@ func (t *PGSQLTest) Run(reportChan chan util.Report) {
 	r.Grade = s.Value
 	r.Summary = fmt.Sprintf("%s is correct\n", s.Name)
 SEND:
-	reportChan <- *r
+	reportChan <- r
 }
 
 func (t *PGSQLTest) Close() {

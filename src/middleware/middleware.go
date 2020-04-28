@@ -6,9 +6,17 @@ import (
 )
 
 type Middleware interface {
-	Wrap(test *test.Test) *test.Test
+	Wrap(test *test.Test) test.Test
+	String() string
 }
 
-func SelectMiddleware(s sample.Sample) []Middleware {
-	return nil
+func SelectMiddleware(t test.Test, s sample.Sample) test.Test {
+	mwList := map[string]Middleware{"trigger": &Trigger{}}
+	for k, mw := range mwList {
+		_, found := s.Middleware[k]
+		if found {
+			t = mw.Wrap(&t)
+		}
+	}
+	return t
 }

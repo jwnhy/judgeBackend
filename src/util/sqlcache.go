@@ -21,6 +21,6 @@ func (s SQLCache) Get(sampleName, sql string) ([]interface{}, bool) {
 	return res.([]interface{}), ok
 }
 
-func New() SQLCache {
+func NewCache() SQLCache {
 	return SQLCache{cmap.New()}
 }

@@ -13,7 +13,7 @@ import (
 	"os"
 )
 
-var sqliteCache = util.New()
+var sqliteCache = util.NewCache()
 
 type SQLiteTest struct {
 	input  string
@@ -22,6 +22,10 @@ type SQLiteTest struct {
 
 func (t *SQLiteTest) String() string {
 	return "SQLiteTest"
+}
+
+func (t *SQLiteTest) GetSample() sample.Sample {
+	return t.sample
 }
 
 func (t *SQLiteTest) Init(s sample.Sample, input string) error {
