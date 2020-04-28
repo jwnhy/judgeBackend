@@ -1,4 +1,4 @@
-package report
+package util
 
 type Report struct {
 	SID     string

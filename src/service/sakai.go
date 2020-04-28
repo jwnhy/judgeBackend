@@ -1,4 +1,4 @@
-package sakai
+package service
 
 import (
 	"encoding/csv"
@@ -6,9 +6,9 @@ import (
 	"github.com/dimchansky/utfbom"
 	"github.com/tushar2708/altcsv"
 	"io/ioutil"
-	"judgeBackend/src/baseinterface/test"
-	"judgeBackend/src/basestruct/report"
-	"judgeBackend/src/service/sample"
+	"judgeBackend/src/test"
+	"judgeBackend/src/util"
+	"judgeBackend/src/util/sample"
 	"log"
 	"os"
 	"path"
@@ -159,13 +159,13 @@ func StudentToInput(studentSlice map[string]*Student) error {
 	return nil
 }
 
-func InitAndRun(sampleDir string, student *Student, reportChan chan report.Report) {
+func InitAndRun(sampleDir string, student *Student, reportChan chan util.Report) {
 	files, err := ioutil.ReadDir(sampleDir)
 	if err != nil {
 		log.Fatal(err)
 	}
 	input := student.FileContent
-	tmpReportChan := make(chan report.Report)
+	tmpReportChan := make(chan util.Report)
 	for _, f := range files {
 		s, err := sample.LoadFromFile(path.Join(sampleDir, f.Name()))
 		if err != nil {
@@ -174,7 +174,7 @@ func InitAndRun(sampleDir string, student *Student, reportChan chan report.Repor
 		t := test.SelectTest(*s)
 
 		if input[s.Filename] == "" {
-			reportChan <- report.Report{SID: student.SID, Grade: 0, Summary: s.Filename + " not found.\n", End: false}
+			reportChan <- util.Report{SID: student.SID, Grade: 0, Summary: s.Filename + " not found.\n", End: false}
 			continue
 		}
 
@@ -189,7 +189,7 @@ func InitAndRun(sampleDir string, student *Student, reportChan chan report.Repor
 		reportChan <- r
 		t.Close()
 	}
-	r := report.Report{SID: student.SID, Summary: time.Now().String(), End: true}
+	r := util.Report{SID: student.SID, Summary: time.Now().String(), End: true}
 	reportChan <- r
 }
 
@@ -207,7 +207,7 @@ func Judge(gradeCSV, sampleDir string) error {
 	if err != nil {
 		return err
 	}
-	reportChanQueue := make(chan report.Report, len(studentMap))
+	reportChanQueue := make(chan util.Report, len(studentMap))
 	for _, student := range studentMap {
 		go InitAndRun(sampleDir, student, reportChanQueue)
 	}

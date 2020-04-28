@@ -1,4 +1,4 @@
-package docker
+package util
 
 import (
 	"context"
@@ -6,13 +6,14 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-connections/nat"
 	"github.com/jhoonb/archivex"
-	"judgeBackend/src/service/sample"
+	"judgeBackend/src/util/sample"
 	"os"
 	"path"
 	"sync/atomic"
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	MaxContainerLimit = 12
+	MaxContainerLimit = 36
 	WaitDuration      = 5
 )
 
@@ -59,7 +60,9 @@ func StartContainer(s sample.Sample, ports []nat.Port) (string, error) {
 	res, err := cli.ContainerCreate(context.Background(), &container.Config{
 		Image:        fmt.Sprintf("%s:latest", s.Tag()),
 		ExposedPorts: exposedPorts,
-	}, &container.HostConfig{}, &network.NetworkingConfig{}, "")
+	}, &container.HostConfig{
+		Mounts: []mount.Mount{{Type: mount.TypeTmpfs, Target: "/pgdata"}},
+	}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return "", err
 	}
@@ -88,8 +91,8 @@ func ImageExist(s sample.Sample) (bool, bool, error) {
 	}
 	for _, subl := range l {
 		for _, tag := range subl {
-			building.Remove(s.Tag())
 			if s.Tag()+":latest" == tag {
+				building.Remove(s.Tag())
 				return true, building.Contains(s.Tag()), nil
 			}
 		}

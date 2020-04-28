@@ -1,4 +1,4 @@
-package sqlcache
+package util
 
 import cmap "github.com/orcaman/concurrent-map"
 

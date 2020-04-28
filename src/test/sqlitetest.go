@@ -1,4 +1,4 @@
-package sqlite_judge
+package test
 
 import (
 	"database/sql"
@@ -7,19 +7,21 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"io/ioutil"
-	"judgeBackend/src/basestruct/report"
-	"judgeBackend/src/basestruct/sqlcache"
-	"judgeBackend/src/service/sample"
 	"judgeBackend/src/util"
+	"judgeBackend/src/util/sample"
 	"log"
 	"os"
 )
 
-var sqlCache = sqlcache.New()
+var sqliteCache = util.New()
 
 type SQLiteTest struct {
 	input  string
 	sample sample.Sample
+}
+
+func (t *SQLiteTest) String() string {
+	return "SQLiteTest"
 }
 
 func (t *SQLiteTest) Init(s sample.Sample, input string) error {
@@ -46,11 +48,11 @@ func (t *SQLiteTest) Init(s sample.Sample, input string) error {
 	return nil
 }
 
-func (t *SQLiteTest) Run(reportChan chan report.Report) {
+func (t *SQLiteTest) Run(reportChan chan util.Report) {
 	s := t.sample
 	var standardSlice []interface{}
-	r := &report.Report{}
-	res, ok := sqlCache.Get(s.Name, s.SQL)
+	r := &util.Report{}
+	res, ok := sqliteCache.Get(s.Name, s.SQL)
 	if !ok {
 		standardRows, err := s.DB.Query(s.SQL)
 		if err != nil {
@@ -61,7 +63,7 @@ func (t *SQLiteTest) Run(reportChan chan report.Report) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		sqlCache.Set(s.Name, s.SQL, standardSlice)
+		sqliteCache.Set(s.Name, s.SQL, standardSlice)
 	} else {
 		standardSlice = res
 	}

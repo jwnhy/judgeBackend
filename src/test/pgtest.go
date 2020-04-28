@@ -1,4 +1,4 @@
-package pgsql_judge
+package test
 
 import (
 	"database/sql"
@@ -6,16 +6,13 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/go-connections/nat"
 	_ "github.com/lib/pq"
-	"judgeBackend/src/basestruct/report"
-	"judgeBackend/src/basestruct/sqlcache"
-	"judgeBackend/src/service/docker"
-	"judgeBackend/src/service/sample"
 	"judgeBackend/src/util"
+	"judgeBackend/src/util/sample"
 	"log"
 	"time"
 )
 
-var sqlCache = sqlcache.New()
+var pgCache = util.New()
 
 const (
 	WaitDuration = 3
@@ -27,30 +24,33 @@ type PGSQLTest struct {
 	dockerId string
 }
 
+func (t PGSQLTest) String() string {
+	return "PGSQLTest"
+}
 func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 	if s.Spec.Lang == sample.Postgres {
-		built, building, err := docker.ImageExist(s)
+		built, building, err := util.ImageExist(s)
 		if err != nil {
 			return err
 		}
 		if !building && !built {
-			err := docker.Build(s)
+			err := util.Build(s)
 			if err != nil {
 				return err
 			}
 		}
 		for !built {
-			built, _, err = docker.ImageExist(s)
+			built, _, err = util.ImageExist(s)
 			if err != nil {
 				return err
 			}
 			time.Sleep(WaitDuration * time.Second)
 		}
-		id, err := docker.StartContainer(s, []nat.Port{"5432"})
+		id, err := util.StartContainer(s, []nat.Port{"5432"})
 		if err != nil {
 			return err
 		}
-		ip, err := docker.GetIPAddress(id)
+		ip, err := util.GetIPAddress(id)
 		connStr := fmt.Sprintf("postgres://judge:judge@%s/judge?sslmode=disable", ip)
 		s.DB, err = sql.Open("postgres", connStr)
 		if err = s.DB.Ping(); err != nil {
@@ -63,11 +63,11 @@ func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 	return nil
 }
 
-func (t *PGSQLTest) Run(reportChan chan report.Report) {
+func (t *PGSQLTest) Run(reportChan chan util.Report) {
 	s := t.sample
 	var standardSlice []interface{}
-	r := &report.Report{}
-	res, ok := sqlCache.Get(s.Name, s.SQL)
+	r := &util.Report{}
+	res, ok := pgCache.Get(s.Name, s.SQL)
 	if !ok {
 		standardRows, err := s.DB.Query(s.SQL)
 		if err != nil {
@@ -78,7 +78,7 @@ func (t *PGSQLTest) Run(reportChan chan report.Report) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		sqlCache.Set(s.Name, s.SQL, standardSlice)
+		pgCache.Set(s.Name, s.SQL, standardSlice)
 	} else {
 		standardSlice = res
 	}
@@ -126,7 +126,7 @@ SEND:
 }
 
 func (t *PGSQLTest) Close() {
-	err := docker.RemoveContainer(t.dockerId)
+	err := util.RemoveContainer(t.dockerId)
 	if err != nil {
 		fmt.Println(err)
 	}
