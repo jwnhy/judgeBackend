@@ -28,7 +28,7 @@ func (t *SQLiteTest) GetSample() sample.Sample {
 	return t.sample
 }
 
-func (t *SQLiteTest) Init(s sample.Sample, input string) error {
+func (t *SQLiteTest) Init(s sample.Sample, input map[string]string) error {
 	if s.Spec.Lang == sample.SQLite {
 		sourceDB, err := os.Open(s.Spec.Database)
 		if err != nil {
@@ -47,7 +47,7 @@ func (t *SQLiteTest) Init(s sample.Sample, input string) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		*t = SQLiteTest{input, s}
+		*t = SQLiteTest{input[s.Filename], s}
 	}
 	return nil
 }

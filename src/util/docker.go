@@ -6,7 +6,6 @@ import (
 	mapset "github.com/deckarep/golang-set"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -21,7 +20,7 @@ import (
 )
 
 const (
-	MaxContainerLimit = 36
+	MaxContainerLimit = 12
 	WaitDuration      = 5
 )
 
@@ -60,9 +59,7 @@ func StartContainer(s sample.Sample, ports []nat.Port) (string, error) {
 	res, err := cli.ContainerCreate(context.Background(), &container.Config{
 		Image:        fmt.Sprintf("%s:latest", s.Tag()),
 		ExposedPorts: exposedPorts,
-	}, &container.HostConfig{
-		Mounts: []mount.Mount{{Type: mount.TypeTmpfs, Target: "/pgdata"}},
-	}, &network.NetworkingConfig{}, "")
+	}, &container.HostConfig{}, &network.NetworkingConfig{}, "")
 	if err != nil {
 		return "", err
 	}

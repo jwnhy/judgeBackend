@@ -30,7 +30,7 @@ func (t PGSQLTest) String() string {
 func (t *PGSQLTest) GetSample() sample.Sample {
 	return t.sample
 }
-func (t *PGSQLTest) Init(s sample.Sample, input string) error {
+func (t *PGSQLTest) Init(s sample.Sample, input map[string]string) error {
 	if s.Spec.Lang == sample.Postgres {
 		built, building, err := util.ImageExist(s)
 		if err != nil {
@@ -61,7 +61,7 @@ func (t *PGSQLTest) Init(s sample.Sample, input string) error {
 				time.Sleep(WaitDuration * time.Second)
 			}
 		}
-		*t = PGSQLTest{input, s, id}
+		*t = PGSQLTest{input[s.Filename], s, id}
 	}
 	return nil
 }

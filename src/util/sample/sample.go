@@ -8,7 +8,7 @@ import (
 )
 
 type Sample struct {
-	Name        string `yaml:"name"`
+	Name        string 						 `yaml:"name"`
 	Assignment  string
 	Filename    string                       `yaml:"filename"`
 	Description string                       `yaml:"description"`
@@ -18,7 +18,7 @@ type Sample struct {
 	SQL         string                       `yaml:"sql"`
 	Spec        Spec                         `yaml:"spec"`
 	Value       float64                      `yaml:"value"`
-	Middleware  map[string]map[string]string `yaml:"middleware"`
+	Middleware  map[string]map[string][]string `yaml:"middleware"`
 	DB          *sql.DB
 	TmpFile     string
 }

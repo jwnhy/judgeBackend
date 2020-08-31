@@ -6,7 +6,7 @@ import (
 	"github.com/dimchansky/utfbom"
 	"github.com/tushar2708/altcsv"
 	"io/ioutil"
-	"judgeBackend/src/test"
+	"judgeBackend/src/middleware"
 	"judgeBackend/src/util"
 	"judgeBackend/src/util/sample"
 	"log"
@@ -171,14 +171,14 @@ func InitAndRun(sampleDir string, student *Student, reportChan chan util.Report)
 		if err != nil {
 			log.Fatal(err)
 		}
-		t := test.SelectTest(*s)
+		t := middleware.SelectTest(*s)
 
-		if input[s.Filename] == "" {
+		if input[s.Filename] == "" && s.Filename != "*" {
 			reportChan <- util.Report{SID: student.SID, Grade: 0, Summary: s.Filename + " not found.\n", End: false}
 			continue
 		}
 
-		err = t.Init(*s, input[s.Filename])
+		err = t.Init(*s, input)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -10,7 +10,7 @@ import (
 
 func main() {
 	t1 := time.Now()
-	err := service.Judge("Assignment3 Complex query/grades.csv", "samples/ass3")
+	err := service.Judge("Assignment4 Trigger Final/grades.csv", "samples/ass4")
 	if err != nil {
 		log.Fatal(err)
 	}
